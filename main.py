@@ -5,10 +5,10 @@ from PIL import Image
 from io import BytesIO
 
 # Initialize Google GenAI client
-client = genai.Client()
+client = genai.Client(api_key="AIzaSyDcCsCvsmtCBSv1EGLCJwPfQNZTSRLj79Q")
 
 # Hardcoded prompt
-PROMPT = "Create a picture of my cat eating a nano-banana in a fancy restaurant under the Gemini constellation"
+PROMPT = "take image as reference , A woman with a fair skin tone and warm undertones, glowing with sweat. She has defined facial features, bold eyebrows, and lipstick. She is dressed in a short sports bra with thin straps and a small front cutout. her tummy midriff visible. She accessorizes with small gold hoop earrings and a delicate gold chain with a pendant. keep the body measurements and facial details same as the uploaded photo as possible. same reference inage background. same pose and expression as original photo."
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Send me a photo, and I will edit it with the hardcoded prompt!")
