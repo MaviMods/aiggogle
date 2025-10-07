@@ -1,66 +1,81 @@
 import os
+import json
+import requests
 from io import BytesIO
 from PIL import Image
 from telegram import Update, InputFile
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-from google import genai
-from dotenv import load_dotenv
-load_dotenv()
+import http.client
 
-# Load environment variables (you should have a .env file or set these in your system)
+# Load environment variables
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-GENAI_API_KEY = os.getenv("GENAI_API_KEY")
+RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")  # Your RapidAPI key
 
-# Initialize Google GenAI client with API key
-client = genai.Client(api_key=GENAI_API_KEY)
-
-# Hardcoded prompt
-PROMPT = "take image as reference , A woman with a fair skin tone and warm undertones, glowing with sweat. She has defined facial features, bold eyebrows, and lipstick. She is dressed in a short sports bra with thin straps and a small front cutout. her tummy midriff visible. She accessorizes with small gold hoop earrings and a delicate gold chain with a pendant. keep the body measurements and facial details same as the uploaded photo as possible. same reference inage background. same pose and expression as original photo."
+# Hardcoded prompt for edits
+PROMPT = "Edit this image according to the prompt: make it fancy and magical"
 
 # /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Send me a photo, and I will edit it with the hardcoded prompt!"
-    )
+    await update.message.reply_text("Send me a photo, and I will edit it using RapidAPI!")
 
 # Handle incoming photos
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        # Get the highest resolution photo from Telegram
+        # Download photo from Telegram as byte array
         file = await update.message.photo[-1].get_file()
-
-        # Download the photo as byte array (new method in v20+)
         file_bytes = BytesIO(await file.download_as_bytearray())
         file_bytes.seek(0)
 
-        # Open the image with PIL
-        image = Image.open(file_bytes)
+        # Option 1: Upload image to image hosting and use URL (simplest)
+        # Here, we'll use a free image hosting service (or you can use your own)
+        # For simplicity, let's assume user sends a URL
+        # If you want to upload to RapidAPI directly, the API must support base64 input
 
-        # Send to Google GenAI for editing
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-image",
-            contents=[PROMPT, image]
-        )
+        # Convert image to base64
+        image_base64 = base64.b64encode(file_bytes.read()).decode("utf-8")
 
-        # Get the edited image
-        for part in response.candidates[0].content.parts:
-            if part.inline_data is not None:
-                edited_image = Image.open(BytesIO(part.inline_data.data))
-                output_bytes = BytesIO()
-                edited_image.save(output_bytes, format="PNG")
-                output_bytes.seek(0)
-                await update.message.reply_photo(photo=InputFile(output_bytes))
-                return
+        # Prepare RapidAPI payload
+        payload = json.dumps({
+            "prompt": PROMPT,
+            "image": [image_base64],  # Some RapidAPI endpoints support base64 directly
+            "stream": False,
+            "return": "base64_image"  # so we get the actual image bytes
+        })
 
-        await update.message.reply_text("Sorry, I couldn't edit your image.")
+        headers = {
+            'x-rapidapi-key': RAPIDAPI_KEY,
+            'x-rapidapi-host': "gemini-2-5-flash-image-nano-banana1.p.rapidapi.com",
+            'Content-Type': "application/json"
+        }
+
+        # Connect and send request
+        conn = http.client.HTTPSConnection("gemini-2-5-flash-image-nano-banana1.p.rapidapi.com")
+        conn.request("POST", "/api/gemini", payload, headers)
+        res = conn.getresponse()
+        data = res.read()
+        conn.close()
+
+        # Parse response
+        response_json = json.loads(data.decode("utf-8"))
+
+        # Extract base64 image
+        edited_base64 = response_json['output'][0]['image']  # check exact path depending on API
+        edited_bytes = BytesIO(base64.b64decode(edited_base64))
+        edited_image = Image.open(edited_bytes)
+
+        # Send back to Telegram
+        output_bytes = BytesIO()
+        edited_image.save(output_bytes, format="PNG")
+        output_bytes.seek(0)
+        await update.message.reply_photo(photo=InputFile(output_bytes))
 
     except Exception as e:
         await update.message.reply_text(f"An error occurred: {e}")
         print("Error in handle_photo:", e)
 
-# Run the bot
-if BOT_TOKEN is None:
-    raise ValueError("Please set the TELEGRAM_BOT_TOKEN environment variable.")
+# Run bot
+if BOT_TOKEN is None or RAPIDAPI_KEY is None:
+    raise ValueError("Please set TELEGRAM_BOT_TOKEN and RAPIDAPI_KEY environment variables.")
 
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 app.add_handler(CommandHandler("start", start))
