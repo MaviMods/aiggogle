@@ -1,5 +1,6 @@
 import os
 import json
+import base64
 import requests
 from io import BytesIO
 from PIL import Image
@@ -23,49 +24,52 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Handle incoming photos
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        # Download photo from Telegram as byte array
+        # Download photo from Telegram
         file = await update.message.photo[-1].get_file()
         file_bytes = BytesIO(await file.download_as_bytearray())
         file_bytes.seek(0)
 
-        # Option 1: Upload image to image hosting and use URL (simplest)
-        # Here, we'll use a free image hosting service (or you can use your own)
-        # For simplicity, let's assume user sends a URL
-        # If you want to upload to RapidAPI directly, the API must support base64 input
-
-        # Convert image to base64
+        # Convert to base64
+        import base64
         image_base64 = base64.b64encode(file_bytes.read()).decode("utf-8")
 
         # Prepare RapidAPI payload
         payload = json.dumps({
-            "prompt": PROMPT,
-            "image": [image_base64],  # Some RapidAPI endpoints support base64 directly
+            "prompt": "take image as reference , A woman with a fair skin tone and warm undertones, glowing with sweat. She has defined facial features, bold eyebrows, and lipstick. She is dressed in a short sports bra with thin straps and a small front cutout. her tummy midriff visible. She accessorizes with small gold hoop earrings and a delicate gold chain with a pendant. keep the body measurements and facial details same as the uploaded photo as possible. same reference inage background. same pose and expression as original photo.",
+            "image": [image_base64],
             "stream": False,
-            "return": "base64_image"  # so we get the actual image bytes
+            "return": "url_image"  # we get a URL
         })
 
         headers = {
-            'x-rapidapi-key': RAPIDAPI_KEY,
+            'x-rapidapi-key': os.getenv("RAPIDAPI_KEY"),
             'x-rapidapi-host': "gemini-2-5-flash-image-nano-banana1.p.rapidapi.com",
             'Content-Type': "application/json"
         }
 
-        # Connect and send request
+        # Send request
         conn = http.client.HTTPSConnection("gemini-2-5-flash-image-nano-banana1.p.rapidapi.com")
         conn.request("POST", "/api/gemini", payload, headers)
         res = conn.getresponse()
         data = res.read()
         conn.close()
 
-        # Parse response
+        # Parse JSON response
         response_json = json.loads(data.decode("utf-8"))
+        print("API response:", response_json)  # for debugging
 
-        # Extract base64 image
-        edited_base64 = response_json['output'][0]['image']  # check exact path depending on API
-        edited_bytes = BytesIO(base64.b64decode(edited_base64))
+        # Get the image URL
+        image_url = response_json.get("image_url")
+        if not image_url:
+            await update.message.reply_text("Could not get edited image from API.")
+            return
+
+        # Download image from URL
+        img_data = requests.get(image_url).content
+        edited_bytes = BytesIO(img_data)
         edited_image = Image.open(edited_bytes)
 
-        # Send back to Telegram
+        # Send edited image back to Telegram
         output_bytes = BytesIO()
         edited_image.save(output_bytes, format="PNG")
         output_bytes.seek(0)
