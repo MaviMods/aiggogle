@@ -6,6 +6,8 @@ from PIL import Image
 from telegram import Update, InputFile
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import http.client
+from dotenv import load_dotenv
+load_dotenv()
 
 # Load environment variables
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
