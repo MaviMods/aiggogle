@@ -9,7 +9,7 @@ prompt = (
     "Create a high quality, ultra- realistic portrait of 8k, of same   woman, from the uploaded image, keep her face and features exactly the same (no face change), young women wearing colour bikini triangle cut out on front. seeing from front,showing full body pose, and background same as reference as posible ",
 )
 
-image = Image.open("/shiva.jpg")
+image = Image.open("shiva.jpg")
 
 response = client.models.generate_content(
     model="gemini-2.5-flash-image",
