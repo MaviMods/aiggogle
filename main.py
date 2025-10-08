@@ -108,9 +108,4 @@ def main():
     keep_alive()  # Start Flask keep-alive
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("api", set_api_key))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
+    app.add_handler(C
