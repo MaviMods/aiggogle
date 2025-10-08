@@ -3,7 +3,7 @@ from google.genai import types
 from PIL import Image
 from io import BytesIO
 
-client = genai.Client()
+client = genai.Client(api_key='AIzaSyB5hmP4OcVBn7jXaZZFMAvqAuyrqL1hF_A')
 
 prompt = (
     "Create a high quality, ultra- realistic portrait of 8k, of same   woman, from the uploaded image, keep her face and features exactly the same (no face change), young women wearing colour bikini triangle cut out on front. seeing from front,showing full body pose, and background same as reference as posible ",
